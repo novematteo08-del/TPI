@@ -1,0 +1,146 @@
+// ===== DATI: non modificarli =====
+
+const SOGLIE = {
+  temperatura: { min: 18, max: 26 },
+  umidita: { min: 30, max: 70 }
+}
+
+const letture = [
+  { id: "T01", tipo: "temperatura", valore: 21.5, posizione: { piano: 0, stanza: "Atrio" } },
+  { id: "T02", tipo: "temperatura", valore: 27.8, batteria: 64, posizione: { piano: 1, stanza: "Lab 3" } },
+  { id: "U01", tipo: "umidita", valore: 45, batteria: 0, posizione: { piano: 1, stanza: "Lab 3" } },
+  { id: "T03", tipo: "temperatura", valore: null, batteria: 12, posizione: { piano: 1, stanza: "Aula 12" } },
+  { id: "U02", tipo: "umidita", valore: 78, posizione: { piano: 0, stanza: "Palestra" } },
+  { id: "T04", tipo: "temperatura", valore: 16.2, batteria: 91, posizione: { piano: 2, stanza: "Aula 21" } },
+  { id: "T05", tipo: "temperatura", valore: 22, batteria: 55 },
+  { id: "U03", tipo: "umidita", valore: 25, batteria: 73, posizione: { piano: 2, stanza: "Aula 21" } },
+  { id: "T06", tipo: "temperatura", valore: 26, posizione: { piano: 0, stanza: "Palestra" } },
+  { id: "T07", tipo: "temperatura", valore: 29.1, batteria: 38, posizione: { piano: 1, stanza: "Lab 3" } },
+  { id: "U04", tipo: "umidita", valore: null, posizione: { piano: 2, stanza: "Aula 22" } },
+  { id: "T08", tipo: "temperatura", valore: 19.4, batteria: 8, posizione: { piano: 3, stanza: "Biblioteca" } }
+]
+
+
+// ===== 1 · Il riepilogo =====
+
+letture.forEach((l, i) => {
+  const valore = l.valore ?? "nessun dato"
+  console.log(`${i + 1}. ${l.id} · ${l.tipo} · ${valore}`)
+})
+
+
+// ===== 2 · Le schede =====
+
+const schede = letture.map(l => {
+  const soglia = SOGLIE[l.tipo]
+  
+  let stato = ""
+  if (l.valore === null) {
+    stato = "OFFLINE"
+  } else if (l.valore < soglia.min || l.valore > soglia.max) {
+    stato = "ALLARME"
+  } else {
+    stato = "OK"
+  }
+
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    valore: l.valore,
+    batteria: l.batteria,
+    piano: l.posizione?.piano,
+    stanza: l.posizione?.stanza ?? "non installato",
+    stato: stato
+  }
+})
+
+
+// ===== 3 · Gli allarmi =====
+
+const allarmi = schede.filter(s => s.stato === "ALLARME")
+const offline = schede.filter(s => s.stato === "OFFLINE")
+
+const idAllarmi = allarmi.map(s => s.id).join(", ")
+const idOffline = offline.map(s => s.id).join(", ")
+
+console.log(`${allarmi.length} letture in allarme: ${idAllarmi}`)
+console.log(`${offline.length} sensori offline: ${idOffline}`)
+
+
+// ===== 4 · Dov'è il sensore =====
+
+const infoSensore = id => {
+  const trovato = letture.find(l => l.id === id)
+
+  if (trovato === undefined) {
+    return `Sensore ${id} inesistente`
+  }
+
+  const stanza = trovato.posizione?.stanza ?? "non installato"
+  const piano = trovato.posizione?.piano ?? "-"
+
+  return `${id} · ${stanza} · piano ${piano}`
+}
+
+
+// ===== 5 · La media =====
+
+const temperature = letture.filter(l => l.tipo === "temperatura" && l.valore !== null)
+const somma = temperature.reduce((acc, l) => acc + l.valore, 0)
+const media = somma / temperature.length
+
+console.log(`Temperatura media: ${media.toFixed(1)} °C su ${temperature.length} sensori`)
+
+
+// ===== 6 · Allarmi per stanza =====
+
+const allarmiPerStanza = allarmi.reduce((acc, s) => {
+  const stanza = s.stanza
+  const contatore = acc[stanza] ?? 0
+  
+  acc[stanza] = contatore + 1
+  
+  return acc
+}, {})
+
+const aula12 = allarmiPerStanza["Aula 12"] ?? 0
+
+console.log(allarmiPerStanza)
+console.log(aula12)
+
+
+// ===== 7 · Il rapporto di piano =====
+
+const rapportoPiano = piano => {
+  const sulPiano = schede.filter(s => s.piano === piano)
+
+  if (sulPiano.length === 0) {
+    return `Piano ${piano} · nessun sensore`
+  }
+
+  const quanti = sulPiano.length
+  const parola = quanti === 1 ? "sensore" : "sensori"
+
+  const inAllarme = sulPiano.filter(s => s.stato === "ALLARME")
+  const idAllarme = inAllarme.map(s => s.id)
+  const allarmeTesto = idAllarme.length > 0 ? idAllarme.join(", ") : "nessuno"
+
+  const aBatteria = sulPiano.filter(s => s.batteria !== undefined)
+  
+  let batteriaTesto = ""
+  if (aBatteria.length === 0) {
+    batteriaTesto = "tutti a rete"
+  } else {
+    const minima = aBatteria.reduce((min, s) => {
+      if (s.batteria < min) {
+        return s.batteria
+      }
+      return min
+    }, 100)
+    batteriaTesto = minima + "%"
+  }
+
+  return `Piano ${piano} · ${quanti} ${parola} · in allarme: ${allarmeTesto} · batteria minima: ${batteriaTesto}`
+}
+
+;[0, 1, 2, 3, 4].forEach(p => console.log(rapportoPiano(p)))
